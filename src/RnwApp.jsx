@@ -1,11 +1,12 @@
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 
 import { useLoginViewport } from './features/auth/useLoginViewport.js';
 import { useReducedMotionSafe } from './hooks/useReducedMotionSafe.js';
 import { getMotionCssVariables } from './motion.js';
 import { RnwAuthScreen } from './auth/RnwAuthScreen.jsx';
+import { RnwAuthRouteStage } from './auth/RnwAuthRouteStage.jsx';
 import { preloadRnwAppBootstrap } from './app/useRnwAppBootstrap.js';
-import AnimatedScreen from './dom/AnimatedScreenDom.jsx';
 
 const RnwMainAppShell = lazy(() => import('./app/RnwMainAppShell.jsx'));
 
@@ -81,16 +82,17 @@ export function RnwApp() {
   }, []);
 
   return (
-    <div className="screen-stack" style={getMotionCssVariables(reducedMotion)}>
-      <AnimatedScreen
-        screenKey="login"
+    <View style={[styles.screenStack, getMotionCssVariables(reducedMotion)]}>
+      <RnwAuthRouteStage
         currentScreen={route}
         navDir={routeTransition}
         reducedMotion={reducedMotion}
+        screenKey="login"
       >
         <RnwAuthScreen
           focusedField={loginViewport.focusedField}
           isFilled={isFilled}
+          keyboardInset={loginViewport.keyboardInset}
           onFieldBlur={loginViewport.handleFieldBlur}
           onFieldFocus={loginViewport.handleFieldFocus}
           onPasswordChange={setPassword}
@@ -99,13 +101,13 @@ export function RnwApp() {
           password={password}
           username={username}
         />
-      </AnimatedScreen>
+      </RnwAuthRouteStage>
 
-      <AnimatedScreen
-        screenKey="app"
+      <RnwAuthRouteStage
         currentScreen={route}
         navDir={routeTransition}
         reducedMotion={reducedMotion}
+        screenKey="app"
       >
         {hasEnteredApp ? (
           <Suspense fallback={null}>
@@ -116,7 +118,18 @@ export function RnwApp() {
             />
           </Suspense>
         ) : null}
-      </AnimatedScreen>
-    </div>
+      </RnwAuthRouteStage>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screenStack: {
+    position: 'fixed',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    overflow: 'hidden',
+  },
+});

@@ -1,17 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const KEYBOARD_INSET_VAR = '--keyboard-inset';
-
-function writeKeyboardInset(inset) {
-  if (typeof document === 'undefined') {
-    return;
-  }
-
-  document.documentElement.style.setProperty(KEYBOARD_INSET_VAR, `${inset}px`);
-}
-
 export function useLoginViewport({ enabled }) {
   const [focusedField, setFocusedField] = useState('');
+  const [keyboardInset, setKeyboardInset] = useState(0);
   const blurTimeoutRef = useRef(null);
   const lastInsetRef = useRef(0);
 
@@ -27,7 +18,8 @@ export function useLoginViewport({ enabled }) {
   useEffect(() => {
     if (!enabled) {
       setFocusedField('');
-      writeKeyboardInset(0);
+      setKeyboardInset(0);
+      lastInsetRef.current = 0;
     }
   }, [enabled]);
 
@@ -47,7 +39,14 @@ export function useLoginViewport({ enabled }) {
 
     const apply = () => {
       rafId = null;
-      writeKeyboardInset(pending);
+      setKeyboardInset((currentInset) => {
+        if (currentInset === pending) {
+          return currentInset;
+        }
+
+        return pending;
+      });
+
       if (pending > 0) {
         lastInsetRef.current = pending;
       }
@@ -58,10 +57,7 @@ export function useLoginViewport({ enabled }) {
         baseline = window.innerHeight;
       }
 
-      const inset = Math.max(
-        0,
-        baseline - viewport.height - viewport.offsetTop,
-      );
+      const inset = Math.max(0, baseline - viewport.height - viewport.offsetTop);
 
       if (inset === pending && rafId !== null) {
         return;
@@ -88,7 +84,7 @@ export function useLoginViewport({ enabled }) {
       if (rafId !== null) {
         window.cancelAnimationFrame(rafId);
       }
-      writeKeyboardInset(0);
+      setKeyboardInset(0);
     };
   }, [enabled]);
 
@@ -101,14 +97,14 @@ export function useLoginViewport({ enabled }) {
     setFocusedField(field);
 
     if (lastInsetRef.current > 0) {
-      writeKeyboardInset(lastInsetRef.current);
+      setKeyboardInset(lastInsetRef.current);
     }
   }, []);
 
   const handleFieldBlur = useCallback(() => {
     blurTimeoutRef.current = window.setTimeout(() => {
       setFocusedField('');
-      writeKeyboardInset(0);
+      setKeyboardInset(0);
       blurTimeoutRef.current = null;
     }, 80);
   }, []);
@@ -117,5 +113,6 @@ export function useLoginViewport({ enabled }) {
     focusedField,
     handleFieldBlur,
     handleFieldFocus,
+    keyboardInset,
   };
 }

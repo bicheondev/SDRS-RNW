@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
 
 import { motionDurationsMs, motionTokens } from '../motion.js';
+import { useReducedMotionSafe } from '../hooks/useReducedMotionSafe.js';
 import { measureNodeInWindow } from '../utils/layout.js';
 
 const MIN_ZOOM_SCALE = 1;
@@ -189,6 +189,67 @@ function getPointerSnapshot(event) {
   };
 }
 
+function toCssEasing(ease) {
+  if (Array.isArray(ease)) {
+    return `cubic-bezier(${ease.join(', ')})`;
+  }
+
+  return ease ?? 'linear';
+}
+
+function getFlipTransform(fromRect, toRect) {
+  const scaleX = toRect.width > 0 ? fromRect.width / toRect.width : 1;
+  const scaleY = toRect.height > 0 ? fromRect.height / toRect.height : 1;
+  const x = fromRect.left - toRect.left;
+  const y = fromRect.top - toRect.top;
+
+  return `translate3d(${x}px, ${y}px, 0) scale(${scaleX}, ${scaleY})`;
+}
+
+function TransitionImage({ duration, openingSnapshot, reducedMotion, snapshot }) {
+  const [settled, setSettled] = useState(reducedMotion);
+  const fromRadius = openingSnapshot ? motionTokens.radius.thumbnail : 0;
+  const toRadius = openingSnapshot ? 0 : motionTokens.radius.thumbnail;
+
+  useLayoutEffect(() => {
+    if (reducedMotion) {
+      setSettled(true);
+      return undefined;
+    }
+
+    setSettled(false);
+    const frameId = requestAnimationFrame(() => {
+      setSettled(true);
+    });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+    };
+  }, [reducedMotion, snapshot]);
+
+  return (
+    <div
+      className="zoom-modal__transition-image"
+      style={{
+        top: snapshot.toRect.top,
+        left: snapshot.toRect.left,
+        width: snapshot.toRect.width,
+        height: snapshot.toRect.height,
+        borderRadius: settled ? toRadius : fromRadius,
+        transform: settled
+          ? 'translate3d(0, 0, 0) scale(1, 1)'
+          : getFlipTransform(snapshot.fromRect, snapshot.toRect),
+        transitionDuration: `${duration}ms`,
+        transitionTimingFunction: toCssEasing(
+          reducedMotion ? motionTokens.ease.linear : motionTokens.ease.ios,
+        ),
+      }}
+    >
+      <img src={snapshot.src} alt="" />
+    </div>
+  );
+}
+
 export default function ImageZoomModal({ session, onClose }) {
   const imageWrapRef = useRef(null);
   const imageRef = useRef(null);
@@ -203,7 +264,7 @@ export default function ImageZoomModal({ session, onClose }) {
   const dismissOffsetRef = useRef(0);
   const transformRef = useRef({ scale: MIN_ZOOM_SCALE, x: 0, y: 0 });
   const hiddenThumbnailRef = useRef(null);
-  const reducedMotion = useReducedMotion() ?? false;
+  const reducedMotion = useReducedMotionSafe();
   const initialIndex = clamp(
     session?.startIndex ?? 0,
     0,
@@ -1007,29 +1068,12 @@ export default function ImageZoomModal({ session, onClose }) {
         </div>
 
         {transitionSnapshot ? (
-          <motion.div
-            className="zoom-modal__transition-image"
-            initial={{
-              top: transitionSnapshot.fromRect.top,
-              left: transitionSnapshot.fromRect.left,
-              width: transitionSnapshot.fromRect.width,
-              height: transitionSnapshot.fromRect.height,
-              borderRadius: openingSnapshot ? motionTokens.radius.thumbnail : 0,
-            }}
-            animate={{
-              top: transitionSnapshot.toRect.top,
-              left: transitionSnapshot.toRect.left,
-              width: transitionSnapshot.toRect.width,
-              height: transitionSnapshot.toRect.height,
-              borderRadius: openingSnapshot ? 0 : motionTokens.radius.thumbnail,
-            }}
-            transition={{
-              duration: closeToThumbnailDuration / 1000,
-              ease: reducedMotion ? motionTokens.ease.linear : motionTokens.ease.ios,
-            }}
-          >
-            <img src={transitionSnapshot.src} alt="" />
-          </motion.div>
+          <TransitionImage
+            duration={closeToThumbnailDuration}
+            openingSnapshot={openingSnapshot}
+            reducedMotion={reducedMotion}
+            snapshot={transitionSnapshot}
+          />
         ) : null}
       </div>
     </div>

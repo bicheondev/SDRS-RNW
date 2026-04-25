@@ -101,7 +101,7 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
   const [hasVisitedMenu, setHasVisitedMenu] = useState(false);
   const manageNavigation = useStackNavigation('manageHome');
   const menuNavigation = useStackNavigation('menu');
-  const { colorMode, setColorMode } = useColorMode('light');
+  const { colorMode, resolvedColorMode, setColorMode } = useColorMode('system');
   const { databaseState, setDatabaseState } = useRnwAppBootstrap();
   const shipEditContentRef = useRef(null);
   const pendingTabNavigationRef = useRef(0);
@@ -112,6 +112,7 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
   });
   const shipEditor = useShipEditor({
     databaseState,
+    enabled: hasVisitedManage || appState.activeTab === 'manage',
     onShipsChanged: () => databasePage.setHarborFilter('전체 항포구'),
     setDatabaseState,
   });
@@ -126,17 +127,13 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
 
     const warmSecondaryModules = () => {
       loadManageHomePageModule();
-      loadManageShipEditPageModule();
       loadMenuPageModule();
-      loadMenuModePageModule();
-      loadMenuInfoPageModule();
-      loadImageZoomModalModule();
     };
 
     if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      idleCallbackId = window.requestIdleCallback(warmSecondaryModules, { timeout: 900 });
+      idleCallbackId = window.requestIdleCallback(warmSecondaryModules, { timeout: 1800 });
     } else {
-      timeoutId = window.setTimeout(warmSecondaryModules, 240);
+      timeoutId = window.setTimeout(warmSecondaryModules, 900);
     }
 
     return () => {
@@ -159,6 +156,14 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
       setHasVisitedMenu(true);
     }
   }, [appState.activeTab]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') {
+      return;
+    }
+
+    document.documentElement.dataset.theme = resolvedColorMode;
+  }, [resolvedColorMode]);
 
   const commitTabNavigation = useCallback((nextTab) => {
     dispatch({ type: 'navigate-tab', nextTab });
@@ -315,7 +320,7 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
   const bottomTabCompact = appState.activeTab === 'manage' ? false : databasePage.compact;
 
   return (
-    <View style={[styles.shell, getThemeCssVariables(colorMode)]}>
+    <View style={[styles.shell, getThemeCssVariables(resolvedColorMode)]}>
       <View style={styles.tabStack}>
         <AnimatedScreen
           fillMode="absolute"

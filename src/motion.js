@@ -185,14 +185,6 @@ export function getScreenOverlayState(direction, phase, reducedMotion = false) {
     return { opacity: 0 };
   }
 
-  if (direction === 'push') {
-    return { opacity: phase === 'exit' ? 0.18 : 0 };
-  }
-
-  if (direction === 'pop') {
-    return { opacity: phase === 'enter' ? 0.18 : 0 };
-  }
-
   return { opacity: 0 };
 }
 

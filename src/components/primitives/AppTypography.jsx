@@ -15,8 +15,12 @@ export const AppTextInput = forwardRef(function AppTextInput({ style, ...props }
 const styles = StyleSheet.create({
   text: {
     fontFamily: APP_FONT_FAMILY,
+    userSelect: 'none',
+    WebkitUserSelect: 'none',
   },
   textInput: {
     fontFamily: APP_FONT_FAMILY,
+    userSelect: 'text',
+    WebkitUserSelect: 'text',
   },
 });

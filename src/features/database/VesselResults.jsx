@@ -1,36 +1,51 @@
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { forwardRef, memo, useCallback, useLayoutEffect, useRef } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { forwardRef, memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Image, ScrollView, StyleSheet, View } from 'react-native';
 
-import { motionTokens } from '../../motion.js';
 import { AppIcon } from '../../components/Icons.jsx';
 import { interactiveStyles, getInteractiveScale } from '../../components/interactiveStyles.js';
 import { InteractivePressable } from '../../components/primitives/InteractivePressable.jsx';
 import { AppText as Text } from '../../components/primitives/AppTypography.jsx';
+import { useReducedMotionSafe } from '../../hooks/useReducedMotionSafe.js';
 import { measureNodeInWindow } from '../../utils/layout.js';
 
-function getViewModeMotion(reducedMotion) {
-  if (reducedMotion) {
-    return {
-      initial: { opacity: 0 },
-      animate: { opacity: 1 },
-      exit: { opacity: 0 },
-      transition: {
-        duration: motionTokens.reduced.duration,
-        ease: motionTokens.ease.linear,
-      },
-    };
-  }
+const VIEW_MODE_TRANSITION_MS = 180;
 
-  return {
-    initial: { opacity: 0, y: 12, scale: 0.995, filter: 'blur(3px)' },
-    animate: { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' },
-    exit: { opacity: 0, y: -12, scale: 0.995, filter: 'blur(3px)' },
-    transition: {
-      duration: motionTokens.duration.fast,
-      ease: motionTokens.ease.ios,
-    },
-  };
+function useViewModeTransition(compact, reducedMotion) {
+  const previousCompactRef = useRef(compact);
+  const timeoutRef = useRef(null);
+  const [animationId, setAnimationId] = useState(0);
+
+  useEffect(() => {
+    if (previousCompactRef.current === compact) {
+      return undefined;
+    }
+
+    previousCompactRef.current = compact;
+
+    if (reducedMotion) {
+      setAnimationId(0);
+      return undefined;
+    }
+
+    setAnimationId((current) => current + 1);
+
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = setTimeout(() => {
+      timeoutRef.current = null;
+    }, VIEW_MODE_TRANSITION_MS);
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+  }, [compact, reducedMotion]);
+
+  return reducedMotion ? 0 : animationId;
 }
 
 function InfoTable({ vessel }) {
@@ -294,7 +309,7 @@ export function VesselEmptyState() {
   );
 }
 
-export const VesselResults = forwardRef(function VesselResults(
+const VesselResultsBase = forwardRef(function VesselResults(
   {
     chromeScrollbar = false,
     compact,
@@ -307,8 +322,8 @@ export const VesselResults = forwardRef(function VesselResults(
   },
   ref,
 ) {
-  const reducedMotion = useReducedMotion() ?? false;
-  const viewModeMotion = getViewModeMotion(reducedMotion);
+  const reducedMotion = useReducedMotionSafe();
+  const modeAnimationId = useViewModeTransition(compact, reducedMotion);
   const scrollRef = useRef(null);
   const setScrollRef = useCallback(
     (node) => {
@@ -337,40 +352,6 @@ export const VesselResults = forwardRef(function VesselResults(
     scrollRef.current?.scrollTo?.({ y: 0, animated: false });
   }, [scrollResetKey]);
 
-  useLayoutEffect(() => {
-    if (!chromeScrollbar || typeof document === 'undefined') {
-      return undefined;
-    }
-
-    const scrollNode = scrollRef.current;
-
-    if (!scrollNode) {
-      return undefined;
-    }
-
-    const updateScrollbarGutter = () => {
-      const measuredGutter = Math.max(0, Math.ceil(scrollNode.offsetWidth - scrollNode.clientWidth));
-      const isScrollable = scrollNode.scrollHeight > scrollNode.clientHeight + 1;
-      const fallbackGutter = isScrollable ? 8 : 0;
-      const gutter = Math.max(measuredGutter, fallbackGutter);
-
-      document.documentElement.style.setProperty('--db-scrollbar-gutter', `${gutter}px`);
-    };
-
-    updateScrollbarGutter();
-
-    const resizeObserver =
-      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateScrollbarGutter);
-
-    resizeObserver?.observe(scrollNode);
-    window.addEventListener('resize', updateScrollbarGutter);
-
-    return () => {
-      resizeObserver?.disconnect();
-      window.removeEventListener('resize', updateScrollbarGutter);
-    };
-  }, [chromeScrollbar, vessels.length]);
-
   return (
     <ScrollView
       className={`main-content ${chromeScrollbar ? 'main-content--chrome-scrollbar' : ''}`.trim()}
@@ -379,44 +360,45 @@ export const VesselResults = forwardRef(function VesselResults(
       onScroll={onScroll}
       scrollEventThrottle={16}
       showsVerticalScrollIndicator
-      style={[styles.mainContent, style]}
+      style={[styles.mainContent, chromeScrollbar && styles.mainContentChromeScrollbar, style]}
     >
-      <AnimatePresence initial={false} mode="wait">
-        <motion.div
-          key={compact ? 'compact' : 'card'}
-          className="vessel-results-mode"
-          {...viewModeMotion}
-        >
-          {vessels.length === 0 ? (
-            <VesselEmptyState />
-          ) : compact ? (
-            vessels.map((vessel, index) => (
-              <View key={vessel.id}>
-                <CompactVesselCard
-                  hiddenThumbnail={hiddenThumbnailId === vessel.id}
-                  vessel={vessel}
-                  onImageClick={handleImageClick}
-                />
-                {index < vessels.length - 1 ? <View style={styles.sectionDivider} /> : null}
-              </View>
-            ))
-          ) : (
-            vessels.map((vessel, index) => (
-              <View key={vessel.id}>
-                <VesselCard
-                  hiddenThumbnail={hiddenThumbnailId === vessel.id}
-                  vessel={vessel}
-                  onImageClick={handleImageClick}
-                />
-                {index < vessels.length - 1 ? <View style={styles.sectionDivider} /> : null}
-              </View>
-            ))
-          )}
-        </motion.div>
-      </AnimatePresence>
+      <div
+        key={`${compact ? 'compact' : 'card'}-${modeAnimationId}`}
+        className={`vessel-results-mode ${
+          modeAnimationId > 0 ? 'vessel-results-mode--transitioning' : ''
+        }`.trim()}
+      >
+        {vessels.length === 0 ? (
+          <VesselEmptyState />
+        ) : compact ? (
+          vessels.map((vessel, index) => (
+            <View key={vessel.id}>
+              <CompactVesselCard
+                hiddenThumbnail={hiddenThumbnailId === vessel.id}
+                vessel={vessel}
+                onImageClick={handleImageClick}
+              />
+              {index < vessels.length - 1 ? <View style={styles.sectionDivider} /> : null}
+            </View>
+          ))
+        ) : (
+          vessels.map((vessel, index) => (
+            <View key={vessel.id}>
+              <VesselCard
+                hiddenThumbnail={hiddenThumbnailId === vessel.id}
+                vessel={vessel}
+                onImageClick={handleImageClick}
+              />
+              {index < vessels.length - 1 ? <View style={styles.sectionDivider} /> : null}
+            </View>
+          ))
+        )}
+      </div>
     </ScrollView>
   );
 });
+
+export const VesselResults = memo(VesselResultsBase);
 
 const styles = StyleSheet.create({
   mainContent: {
@@ -428,7 +410,9 @@ const styles = StyleSheet.create({
     scrollbarWidth: 'auto',
     backgroundColor: 'var(--color-bg-card)',
     paddingTop: 88,
-    paddingBottom: 64,
+  },
+  mainContentChromeScrollbar: {
+    marginBottom: 84,
   },
   mainContentContainer: {
     flexGrow: 1,

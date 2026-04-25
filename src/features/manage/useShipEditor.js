@@ -14,12 +14,12 @@ import {
 
 export function useShipEditor({
   databaseState,
+  enabled = true,
   onShipsChanged,
   setDatabaseState,
 }) {
   const [manageShipCardsState, setManageShipCardsState] = useState([]);
   const [manageShipSavedState, setManageShipSavedState] = useState([]);
-  const [manageShipDirty, setManageShipDirty] = useState(false);
   const [manageShipSearch, setManageShipSearch] = useState('');
   const [manageDiscardTarget, setManageDiscardTarget] = useState(null);
   const [manageImportAlert, setManageImportAlert] = useState(null);
@@ -30,6 +30,10 @@ export function useShipEditor({
   const manageHomePrimaryRows = useMemo(
     () => buildManageHomeRows(databaseState.files),
     [databaseState.files],
+  );
+  const manageShipDirty = useMemo(
+    () => !areManageShipCardsEqual(manageShipCardsState, manageShipSavedState),
+    [manageShipCardsState, manageShipSavedState],
   );
 
   useEffect(
@@ -42,16 +46,15 @@ export function useShipEditor({
   );
 
   useEffect(() => {
-    setManageShipDirty(!areManageShipCardsEqual(manageShipCardsState, manageShipSavedState));
-  }, [manageShipCardsState, manageShipSavedState]);
+    if (!enabled) {
+      return;
+    }
 
-  useEffect(() => {
     const nextCards = cloneManageItems(databaseState.shipRecords);
     setManageShipSavedState(nextCards);
     setManageShipCardsState(cloneManageItems(databaseState.shipRecords));
-    setManageShipDirty(false);
     setManageShipSearch('');
-  }, [databaseState.shipRecords]);
+  }, [databaseState.shipRecords, enabled]);
 
   const hideManageSaveToast = () => {
     if (manageSaveToastTimeoutRef.current) {
@@ -80,7 +83,6 @@ export function useShipEditor({
     const savedCards = cloneManageItems(shipRecords);
     setManageShipSavedState(savedCards);
     setManageShipCardsState(cloneManageItems(shipRecords));
-    setManageShipDirty(false);
     setManageShipSearch('');
   };
 
@@ -94,7 +96,6 @@ export function useShipEditor({
 
   const restoreManageShipSaved = () => {
     setManageShipCardsState(cloneManageItems(manageShipSavedState));
-    setManageShipDirty(false);
   };
 
   const showImportAlert = (error, fallbackCopy) => {
@@ -118,7 +119,6 @@ export function useShipEditor({
           : card,
       ),
     );
-    setManageShipDirty(true);
   };
 
   const handleManageShipAdd = () => {
@@ -131,7 +131,6 @@ export function useShipEditor({
         selected: true,
       },
     ]);
-    setManageShipDirty(true);
     setManageShipSearch('');
   };
 

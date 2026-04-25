@@ -188,19 +188,16 @@ export const TopBar = memo(function TopBar({
   vesselTypeButtonRef,
   vesselTypeLabelWidth,
 }) {
-  const topBarTransform = hidden
-    ? [{ translateX: '-50%' }, { translateY: '-100%' }]
-    : [{ translateX: '-50%' }, { translateY: 0 }];
-
   return (
     <View
-      className={`top-bar ${hidden ? 'top-bar--hidden' : ''} ${
+      className={`top-bar top-bar--rnw-frost ${
         inFilterSheet ? 'top-bar--filter-sheet' : ''
       } ${scrollbarGutter ? 'top-bar--scrollbar-gutter' : ''}`.trim()}
       style={[
         styles.topBar,
+        styles.screenAligned,
         inFilterSheet && styles.topBarInSheet,
-        { transform: topBarTransform },
+        hidden && styles.topBarHidden,
       ]}
     >
       <FrostBackground filterSheet={inFilterSheet} scrollbarGutter={scrollbarGutter} />
@@ -284,7 +281,9 @@ export const SearchTopBar = memo(function SearchTopBar({
 
   return (
     <View
-      className={`search-top-bar ${scrollbarGutter ? 'search-top-bar--scrollbar-gutter' : ''}`.trim()}
+      className={`search-top-bar search-top-bar--rnw-frost ${
+        scrollbarGutter ? 'search-top-bar--scrollbar-gutter' : ''
+      }`.trim()}
       style={[styles.searchTopBar, styles.screenAligned]}
     >
       <FrostBackground scrollbarGutter={scrollbarGutter} />
@@ -377,12 +376,15 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     isolation: 'isolate',
     transitionDuration: 'var(--motion-duration-fast)',
-    transitionProperty: 'transform',
+    transitionProperty: 'top',
     transitionTimingFunction: 'var(--motion-ease-standard)',
-    willChange: 'transform',
+    willChange: 'top',
     backgroundColor: 'transparent',
     WebkitBackfaceVisibility: 'hidden',
     backfaceVisibility: 'hidden',
+  },
+  topBarHidden: {
+    top: -136,
   },
   topBarInSheet: {
     height: 108,

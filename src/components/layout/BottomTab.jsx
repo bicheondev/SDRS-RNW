@@ -35,11 +35,7 @@ function BottomTabButton({ active, label, name, onPress, tone }) {
 
 function BottomTab({ activeTab = 'db', onDbClick, onManageClick, onMenuClick }) {
   return (
-    <View
-      accessibilityRole="tablist"
-      className={`bottom-tab-shell ${activeTab === 'db' ? 'bottom-tab-shell--scrollbar-gutter' : ''}`.trim()}
-      style={styles.shell}
-    >
+    <View accessibilityRole="tablist" style={styles.shell}>
       <View className="bottom-tab__backdrop" style={[styles.backdrop, styles.pointerEventsNone]} />
       <BottomTabButton
         active={activeTab === 'db'}

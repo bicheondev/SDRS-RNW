@@ -11,6 +11,7 @@ import {
   normalizeShipCardsForStorage,
   rebuildImageEntriesFromShips,
 } from '../../domain/ships.js';
+import { readFileAsDataUrl } from '../../platform/files.js';
 
 export function useShipEditor({
   databaseState,
@@ -145,27 +146,27 @@ export function useShipEditor({
     }
 
     hideManageSaveToast();
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== 'string') {
-        return;
-      }
+    readFileAsDataUrl(file)
+      .then((dataUrl) => {
+        if (!dataUrl) {
+          return;
+        }
 
-      setManageShipCardsState((current) =>
-        current.map((card) =>
-          card.id === cardId
-            ? {
-                ...card,
-                image: reader.result,
-                imageFileName: file.name,
-                imageMimeType: file.type || '',
-                selected: true,
-              }
-            : card,
-        ),
-      );
-    };
-    reader.readAsDataURL(file);
+        setManageShipCardsState((current) =>
+          current.map((card) =>
+            card.id === cardId
+              ? {
+                  ...card,
+                  image: dataUrl,
+                  imageFileName: file.name,
+                  imageMimeType: file.type || '',
+                  selected: true,
+                }
+              : card,
+          ),
+        );
+      })
+      .catch(() => {});
   };
 
   const handleManageShipReorder = (nextCards) => {

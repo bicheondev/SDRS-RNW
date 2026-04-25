@@ -6,6 +6,13 @@ import { useShipEditor } from '../features/manage/useShipEditor.js';
 import { useColorMode } from '../hooks/useColorMode.js';
 import { useStackNavigation } from '../hooks/useStackNavigation.js';
 import { motionDurationsMs } from '../motion.js';
+import {
+  getElementRectSnapshot,
+  isHostElement,
+  scheduleIdleTask,
+  setDocumentTheme,
+  setElementDataAttribute,
+} from '../platform/index.js';
 import { getThemeCssVariables } from '../theme.js';
 import { appReducer, initialAppState } from './appReducer.js';
 import { DatabasePage } from '../features/database/DatabasePage.jsx';
@@ -122,29 +129,15 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
       return undefined;
     }
 
-    let timeoutId = null;
-    let idleCallbackId = null;
-
     const warmSecondaryModules = () => {
       loadManageHomePageModule();
       loadMenuPageModule();
     };
 
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      idleCallbackId = window.requestIdleCallback(warmSecondaryModules, { timeout: 1800 });
-    } else {
-      timeoutId = window.setTimeout(warmSecondaryModules, 900);
-    }
-
-    return () => {
-      if (idleCallbackId !== null && typeof window !== 'undefined') {
-        window.cancelIdleCallback?.(idleCallbackId);
-      }
-
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
+    return scheduleIdleTask(warmSecondaryModules, {
+      fallbackDelay: 900,
+      timeout: 1800,
+    });
   }, [isActive]);
 
   useEffect(() => {
@@ -158,11 +151,7 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
   }, [appState.activeTab]);
 
   useEffect(() => {
-    if (typeof document === 'undefined') {
-      return;
-    }
-
-    document.documentElement.dataset.theme = resolvedColorMode;
+    setDocumentTheme(resolvedColorMode);
   }, [resolvedColorMode]);
 
   const commitTabNavigation = useCallback((nextTab) => {
@@ -228,13 +217,12 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
       0,
       vessels.findIndex((entry) => entry.id === vessel.id),
     );
-    const isSourceElement =
-      typeof HTMLElement !== 'undefined' && sourceThumbnail instanceof HTMLElement;
+    const isSourceElement = isHostElement(sourceThumbnail);
     const sourceThumbToken = isSourceElement
       ? `zoom-thumb-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       : null;
     const measuredSourceRect = isSourceElement
-      ? sourceThumbnail.getBoundingClientRect()
+      ? getElementRectSnapshot(sourceThumbnail)
       : sourceThumbnail;
     const sourceRect =
       measuredSourceRect &&
@@ -247,7 +235,7 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
         : null;
 
     if (isSourceElement && sourceThumbToken) {
-      sourceThumbnail.dataset.zoomThumbSource = sourceThumbToken;
+      setElementDataAttribute(sourceThumbnail, 'zoomThumbSource', sourceThumbToken);
     }
 
     dispatch({
@@ -271,7 +259,7 @@ export default function RnwMainAppShell({ isActive, onLogout, reducedMotion }) {
 
   const handleLogout = useCallback(() => {
     onLogout();
-    window.setTimeout(() => {
+    setTimeout(() => {
       dispatch({ type: 'logout' });
       databasePage.resetDatabasePage();
       shipEditor.resetSession();

@@ -17,6 +17,7 @@ import { InteractivePressable } from '../../components/primitives/InteractivePre
 import { AppText as Text, AppTextInput as TextInput } from '../../components/primitives/AppTypography.jsx';
 import { useReducedMotionSafe } from '../../hooks/useReducedMotionSafe.js';
 import { motionDurationsMs, motionTokens } from '../../motion.js';
+import { getComputedStyleValue, getElementRectSnapshot } from '../../platform/index.js';
 import {
   buildSearchIndex,
   compileSearchQuery,
@@ -294,12 +295,7 @@ function getScrollableElement(scrollNode) {
 
 function getElementRect(node) {
   const element = getScrollableElement(node);
-
-  if (!element || typeof element.getBoundingClientRect !== 'function') {
-    return null;
-  }
-
-  const rect = element.getBoundingClientRect();
+  const rect = getElementRectSnapshot(element);
 
   if (!rect?.height) {
     return null;
@@ -310,12 +306,7 @@ function getElementRect(node) {
 
 function getScrollViewportRect(scrollNode) {
   const scrollableElement = getScrollableElement(scrollNode);
-
-  if (!scrollableElement || typeof scrollableElement.getBoundingClientRect !== 'function') {
-    return null;
-  }
-
-  const rect = scrollableElement.getBoundingClientRect();
+  const rect = getElementRectSnapshot(scrollableElement);
 
   if (!rect?.height) {
     return null;
@@ -388,15 +379,11 @@ function getScrollTop(scrollNode, fallbackScrollY = 0) {
 function getScrollPaddingTop(scrollNode) {
   const scrollableElement = getScrollableElement(scrollNode);
 
-  if (
-    !scrollableElement ||
-    typeof window === 'undefined' ||
-    typeof window.getComputedStyle !== 'function'
-  ) {
+  if (!scrollableElement) {
     return 0;
   }
 
-  const rawValue = window.getComputedStyle(scrollableElement).scrollPaddingTop;
+  const rawValue = getComputedStyleValue(scrollableElement, 'scrollPaddingTop');
   const nextValue = Number.parseFloat(rawValue);
 
   return Number.isFinite(nextValue) ? nextValue : 0;
@@ -1611,7 +1598,7 @@ export function ManageShipEditPage({
 
       const target = itemRefs.current.get(recentlyAddedCardId);
       const targetLayout = itemLayoutsRef.current.get(recentlyAddedCardId);
-      const targetRect = target?.getBoundingClientRect?.();
+      const targetRect = getElementRectSnapshot(target);
       const targetRectHeight = targetRect?.height ?? 0;
       const targetHeight = targetRectHeight > 0 ? targetRectHeight : (targetLayout?.height ?? 0);
 

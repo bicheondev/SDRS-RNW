@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "check:bundled-data": "node scripts/check-native-readiness.mjs --bundled-data",
+    "check:dom": "node scripts/check-native-readiness.mjs --dom",
+    "check:native-readiness": "node scripts/check-native-readiness.mjs",
     "preview": "vite preview",
     "test": "vitest",
     "test:run": "vitest run"

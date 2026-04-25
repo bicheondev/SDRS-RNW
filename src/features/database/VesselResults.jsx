@@ -6,6 +6,7 @@ import { interactiveStyles, getInteractiveScale } from '../../components/interac
 import { InteractivePressable } from '../../components/primitives/InteractivePressable.jsx';
 import { AppText as Text } from '../../components/primitives/AppTypography.jsx';
 import { useReducedMotionSafe } from '../../hooks/useReducedMotionSafe.js';
+import { isHostElement } from '../../platform/index.js';
 import { measureNodeInWindow } from '../../utils/layout.js';
 
 const VIEW_MODE_TRANSITION_MS = 180;
@@ -164,7 +165,7 @@ function EquipmentTable({ vessel }) {
 async function handleImagePress(buttonRef, vessel, onImageClick) {
   const sourceThumbnail = buttonRef.current;
 
-  if (typeof HTMLElement !== 'undefined' && sourceThumbnail instanceof HTMLElement) {
+  if (isHostElement(sourceThumbnail)) {
     onImageClick(vessel, sourceThumbnail);
     return;
   }

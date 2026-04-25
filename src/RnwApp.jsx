@@ -6,6 +6,7 @@ import { useReducedMotionSafe } from './hooks/useReducedMotionSafe.js';
 import { getMotionCssVariables } from './motion.js';
 import { RnwAuthScreen } from './auth/RnwAuthScreen.jsx';
 import { RnwAuthRouteStage } from './auth/RnwAuthRouteStage.jsx';
+import { scheduleIdleTask } from './platform/index.js';
 
 const RnwMainAppShell = lazy(() => import('./app/RnwMainAppShell.jsx'));
 let rnwAppBootstrapModulePromise = null;
@@ -33,30 +34,14 @@ export function RnwApp() {
   const isFilled = username.trim() !== '' && password.trim() !== '';
 
   useEffect(() => {
-    let timeoutId = null;
-    let idleCallbackId = null;
-
     const warmLoginSuccessPath = () => {
       preloadRnwMainAppShell();
     };
 
-    if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
-      idleCallbackId = window.requestIdleCallback(warmLoginSuccessPath, {
-        timeout: 900,
-      });
-    } else {
-      timeoutId = window.setTimeout(warmLoginSuccessPath, 240);
-    }
-
-    return () => {
-      if (idleCallbackId !== null && typeof window !== 'undefined') {
-        window.cancelIdleCallback?.(idleCallbackId);
-      }
-
-      if (timeoutId !== null) {
-        window.clearTimeout(timeoutId);
-      }
-    };
+    return scheduleIdleTask(warmLoginSuccessPath, {
+      fallbackDelay: 240,
+      timeout: 900,
+    });
   }, []);
 
   useEffect(() => {

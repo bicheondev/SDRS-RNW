@@ -1,6 +1,13 @@
 import { Appearance } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
 
+import {
+  getPreferredColorScheme,
+  readLocalStorageValue,
+  subscribePreferredColorScheme,
+  writeLocalStorageValue,
+} from '../platform/index.js';
+
 const COLOR_MODE_STORAGE_KEY = 'sdrs:color-mode';
 const VALID_COLOR_MODES = new Set(['system', 'light', 'dark']);
 
@@ -9,23 +16,11 @@ function normalizeColorMode(colorMode, fallback = 'light') {
 }
 
 function getSystemColorMode() {
-  if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-
-  return Appearance.getColorScheme?.() === 'dark' ? 'dark' : 'light';
+  return getPreferredColorScheme() ?? (Appearance.getColorScheme?.() === 'dark' ? 'dark' : 'light');
 }
 
 function getStoredColorMode(initialMode) {
-  if (typeof window === 'undefined') {
-    return normalizeColorMode(initialMode);
-  }
-
-  try {
-    return normalizeColorMode(window.localStorage?.getItem(COLOR_MODE_STORAGE_KEY), initialMode);
-  } catch {
-    return normalizeColorMode(initialMode);
-  }
+  return normalizeColorMode(readLocalStorageValue(COLOR_MODE_STORAGE_KEY), initialMode);
 }
 
 export function useColorMode(initialMode = 'light') {
@@ -44,26 +39,8 @@ export function useColorMode(initialMode = 'light') {
       setSystemColorMode(colorScheme === 'dark' ? 'dark' : 'light');
     };
 
-    let cleanupMatchMedia = null;
-
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handleMediaChange = (event) => {
-        updateSystemColorMode(event.matches ? 'dark' : 'light');
-      };
-
-      updateSystemColorMode(mediaQuery.matches ? 'dark' : 'light');
-
-      if (typeof mediaQuery.addEventListener === 'function') {
-        mediaQuery.addEventListener('change', handleMediaChange);
-        cleanupMatchMedia = () => mediaQuery.removeEventListener('change', handleMediaChange);
-      } else if (typeof mediaQuery.addListener === 'function') {
-        mediaQuery.addListener(handleMediaChange);
-        cleanupMatchMedia = () => mediaQuery.removeListener(handleMediaChange);
-      }
-    } else {
-      setSystemColorMode(getSystemColorMode());
-    }
+    updateSystemColorMode(getSystemColorMode());
+    const cleanupMatchMedia = subscribePreferredColorScheme(updateSystemColorMode);
 
     const subscription = Appearance.addChangeListener?.(({ colorScheme }) => {
       updateSystemColorMode(colorScheme);
@@ -76,15 +53,7 @@ export function useColorMode(initialMode = 'light') {
   }, []);
 
   useEffect(() => {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    try {
-      window.localStorage?.setItem(COLOR_MODE_STORAGE_KEY, colorMode);
-    } catch {
-      // Ignore storage failures; the in-memory selection still applies.
-    }
+    writeLocalStorageValue(COLOR_MODE_STORAGE_KEY, colorMode);
   }, [colorMode]);
 
   const setColorMode = useCallback((nextColorMode) => {

@@ -1,28 +1,21 @@
 import { AccessibilityInfo } from 'react-native';
 import { useEffect, useState } from 'react';
 
+import { getMediaQueryMatch, subscribeMediaQuery } from '../platform/index.js';
+
 export function useReducedMotionSafe() {
   const [reducedMotion, setReducedMotion] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-      const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-      const handleChange = (event) => {
-        setReducedMotion(event.matches);
-      };
+    const mediaQuery = '(prefers-reduced-motion: reduce)';
 
-      setReducedMotion(mediaQuery.matches);
-
-      if (typeof mediaQuery.addEventListener === 'function') {
-        mediaQuery.addEventListener('change', handleChange);
-        return () => mediaQuery.removeEventListener('change', handleChange);
-      }
-
-      mediaQuery.addListener?.(handleChange);
-      return () => mediaQuery.removeListener?.(handleChange);
+    if (getMediaQueryMatch(mediaQuery)) {
+      setReducedMotion(true);
+      return subscribeMediaQuery(mediaQuery, setReducedMotion);
     }
 
     let cancelled = false;
+    const cleanupMediaQuery = subscribeMediaQuery(mediaQuery, setReducedMotion);
 
     AccessibilityInfo.isReduceMotionEnabled?.().then((enabled) => {
       if (!cancelled) {
@@ -36,6 +29,7 @@ export function useReducedMotionSafe() {
 
     return () => {
       cancelled = true;
+      cleanupMediaQuery();
       subscription?.remove?.();
     };
   }, []);

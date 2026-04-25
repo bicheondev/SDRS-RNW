@@ -1,5 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import {
+  addVisualViewportEventListener,
+  addWindowEventListener,
+  getVisualViewport,
+  getWindowInnerHeight,
+  requestAnimationFrameTask,
+} from '../../platform/index.js';
+
 export function useLoginViewport({ enabled }) {
   const [focusedField, setFocusedField] = useState('');
   const [keyboardInset, setKeyboardInset] = useState(0);
@@ -24,21 +32,21 @@ export function useLoginViewport({ enabled }) {
   }, [enabled]);
 
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') {
+    if (!enabled) {
       return undefined;
     }
 
-    const viewport = window.visualViewport;
+    const viewport = getVisualViewport();
     if (!viewport) {
       return undefined;
     }
 
-    let baseline = window.innerHeight;
-    let rafId = null;
+    let baseline = getWindowInnerHeight();
+    let cancelAnimationFrame = null;
     let pending = 0;
 
     const apply = () => {
-      rafId = null;
+      cancelAnimationFrame = null;
       setKeyboardInset((currentInset) => {
         if (currentInset === pending) {
           return currentInset;
@@ -53,37 +61,37 @@ export function useLoginViewport({ enabled }) {
     };
 
     const update = () => {
-      if (window.innerHeight > baseline) {
-        baseline = window.innerHeight;
+      const windowHeight = getWindowInnerHeight();
+
+      if (windowHeight > baseline) {
+        baseline = windowHeight;
       }
 
       const inset = Math.max(0, baseline - viewport.height - viewport.offsetTop);
 
-      if (inset === pending && rafId !== null) {
+      if (inset === pending && cancelAnimationFrame !== null) {
         return;
       }
 
       pending = inset;
 
-      if (rafId === null) {
-        rafId = window.requestAnimationFrame(apply);
+      if (cancelAnimationFrame === null) {
+        cancelAnimationFrame = requestAnimationFrameTask(apply);
       }
     };
 
     update();
-    viewport.addEventListener('resize', update);
-    viewport.addEventListener('scroll', update);
-    window.addEventListener('resize', update);
-    window.addEventListener('orientationchange', update);
+    const removeViewportResize = addVisualViewportEventListener('resize', update);
+    const removeViewportScroll = addVisualViewportEventListener('scroll', update);
+    const removeWindowResize = addWindowEventListener('resize', update);
+    const removeOrientationChange = addWindowEventListener('orientationchange', update);
 
     return () => {
-      viewport.removeEventListener('resize', update);
-      viewport.removeEventListener('scroll', update);
-      window.removeEventListener('resize', update);
-      window.removeEventListener('orientationchange', update);
-      if (rafId !== null) {
-        window.cancelAnimationFrame(rafId);
-      }
+      removeViewportResize();
+      removeViewportScroll();
+      removeWindowResize();
+      removeOrientationChange();
+      cancelAnimationFrame?.();
       setKeyboardInset(0);
     };
   }, [enabled]);
@@ -102,7 +110,7 @@ export function useLoginViewport({ enabled }) {
   }, []);
 
   const handleFieldBlur = useCallback(() => {
-    blurTimeoutRef.current = window.setTimeout(() => {
+    blurTimeoutRef.current = setTimeout(() => {
       setFocusedField('');
       setKeyboardInset(0);
       blurTimeoutRef.current = null;

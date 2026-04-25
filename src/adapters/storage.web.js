@@ -1,4 +1,4 @@
 export {
   loadStoredDatabaseState,
   saveStoredDatabaseState,
-} from '../services/indexedDbStore.js';
+} from '../platform/storage.js';

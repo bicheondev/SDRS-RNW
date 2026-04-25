@@ -1,6 +1,8 @@
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
+import { getHighResolutionTime } from '../../platform/index.js';
+
 const GUIDE_VARIANTS = {
   default: {
     backgroundColor: 'var(--slate-50)',
@@ -129,12 +131,6 @@ function resolvePressGuideOverlayStyle(variant, color, radius, inset) {
   };
 }
 
-function getNow() {
-  return typeof performance !== 'undefined' && typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
-}
-
 function cancelScheduledTimeout(timeoutRef) {
   if (timeoutRef.current === null) {
     return;
@@ -187,7 +183,7 @@ export const InteractivePressable = forwardRef(function InteractivePressable(
   const handlePressIn = useCallback(
     (event) => {
       cancelGuideRelease();
-      guidePressStartedAtRef.current = getNow();
+      guidePressStartedAtRef.current = getHighResolutionTime();
       setPressedFallback(true);
       setPressGuideActive(true);
       onPressIn?.(event);
@@ -200,7 +196,7 @@ export const InteractivePressable = forwardRef(function InteractivePressable(
       cancelGuideRelease();
       setPressedFallback(false);
 
-      const elapsed = getNow() - guidePressStartedAtRef.current;
+      const elapsed = getHighResolutionTime() - guidePressStartedAtRef.current;
       const releaseDelay = Math.max(0, PRESS_GUIDE_MIN_VISIBLE_MS - elapsed);
 
       guideReleaseTimeoutRef.current = setTimeout(() => {

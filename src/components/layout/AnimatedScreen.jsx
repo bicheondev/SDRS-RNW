@@ -10,6 +10,7 @@ import {
   hiddenScreenState,
   visibleScreenState,
 } from '../../motion.js';
+import { blurFocusedDescendant } from '../../platform/index.js';
 
 const FLAT_APP_SHELL_GRADIENT = 'linear-gradient(var(--color-bg-app), var(--color-bg-app))';
 const FLATTENED_BACKDROP_DIRECTIONS = new Set(['tabForward', 'tabBackward', 'push', 'pop']);
@@ -152,18 +153,6 @@ function shouldFlattenScreen(direction, entering) {
   }
 
   return true;
-}
-
-function blurFocusedDescendant(element) {
-  if (typeof document === 'undefined' || !element) {
-    return;
-  }
-
-  const activeElement = document.activeElement;
-
-  if (activeElement && activeElement !== document.body && element.contains(activeElement)) {
-    activeElement.blur?.();
-  }
 }
 
 export default function AnimatedScreen({
